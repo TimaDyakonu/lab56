@@ -27,3 +27,16 @@ docker run -d `
   -p 3000:80 `
   todoapi-frontend
 cd ..
+
+# lab56
+
+docker network create todo-network
+
+docker pull timadyakonu/todo-backend:latest
+docker pull timadyakonu/todo-frontend:latest
+
+docker run -d --name db --network todo-network -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=tododb -p 5432:5432 postgres:17-alpine
+
+docker run -d --name backend --network todo-network -e ConnectionStrings__DefaultConnection="Host=db;Port=5432;Database=tododb;Username=postgres;Password=postgres" -p 5000:5000 timadyakonu/todo-backend:latest
+
+docker run -d --name frontend --network todo-network -p 3000:80 timadyakonu/todo-frontend:latest
