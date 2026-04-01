@@ -1,0 +1,79 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create Docker network
+        run: docker network create todo-network
+
+      - name: Start PostgreSQL container
+        run: |
+          docker run -d --name db \
+            --network todo-network \
+            -e POSTGRES_USER=user \
+            -e POSTGRES_PASSWORD=password \
+            -e POSTGRES_DB=tododb \
+            -p 5432:5432 \
+            postgres:15
+
+      - name: Build and start Backend
+        run: |
+          docker build -t todo-backend:local ./backend
+          docker run -d --name backend \
+            --network todo-network \
+            -e ConnectionStrings__DefaultConnection="Host=db;Port=5432;Database=tododb;Username=user;Password=password" \
+            -p 5000:5000 \
+            todo-backend:local
+
+      - name: Build and start Frontend
+        run: |
+          docker build -t todo-frontend:local ./frontend
+          docker run -d --name frontend \
+            --network todo-network \
+            -p 3000:80 \
+            todo-frontend:local
+
+      - name: Wait for services to start
+        run: sleep 20
+
+      - name: Test Backend API endpoint
+        run: curl -f http://localhost:5000/api/tasks || exit 1
+
+      - name: Test Frontend and Nginx proxy
+        run: curl -f http://localhost:3000/api/tasks || exit 1
+
+      - name: Stop and remove containers
+        run: |
+          docker stop backend frontend db
+          docker rm backend frontend db
+          docker network rm todo-network
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Backend
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/todo-backend:latest
+
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/todo-frontend:latest

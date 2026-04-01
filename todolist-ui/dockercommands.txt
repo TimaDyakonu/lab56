@@ -1,0 +1,29 @@
+docker network create todo-net
+
+docker run -d `
+  --name db `
+  --network todo-net `
+  -e POSTGRES_USER=postgres `
+  -e POSTGRES_PASSWORD=postgres `
+  -e POSTGRES_DB=tododb `
+  -p 5432:5432 `
+  -v pgdata:/var/lib/postgresql/data `
+  postgres:17-alpine
+
+cd TodoApi
+docker build -t todoapi-backend .
+docker run -d `
+  --name backend `
+  --network todo-net `
+  -p 5000:5000 `
+  todoapi-backend
+
+cd ..
+cd todolist-ui
+docker build -t todoapi-frontend .
+docker run -d `
+  --name frontend `
+  --network todo-net `
+  -p 3000:80 `
+  todoapi-frontend
+cd ..
