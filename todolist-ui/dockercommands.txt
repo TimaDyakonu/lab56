@@ -28,7 +28,7 @@ docker run -d `
   todoapi-frontend
 cd ..
 
-# lab56
+# lab56 - test
 
 docker network create todo-network
 
